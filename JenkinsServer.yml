@@ -1,0 +1,59 @@
+---
+- name: Install Jenkins Playbook
+  hosts: Local
+  become: yes
+
+  tasks:
+    - block: #===========RedHat===============#
+      - name: Download
+        shell: wget -O /etc/yum.repos.d/jenkins.repo \ https://pkg.jenkins.io/redhat-stable/jenkins.repo
+
+      - name: Import Key
+        shell: rpm --import https://pkg.jenkins.io/redhat-stable/jenkins.io.key
+
+      - name: Update yum
+        yum: update_cache=yes
+
+      - name: Install Java RedHat
+        yum: name=java-11-openjdk
+
+      - name: Install Jenkins RedHat
+        yum: name=jenkins state=latest
+
+      - name: Open port 8080 tcp
+        shell: firewall-cmd --zone=public --permanent --add-port=8080/tcp
+
+      - name: Reload firewall
+        shell: firewall-cmd --reload
+
+      when: ansible_os_family == "RedHat"
+
+
+
+
+    - block: #===========Debian===============#
+      - name: Download
+        shell: curl -fsSL https://pkg.jenkins.io/debian-stable/jenkins.io.key | tee /usr/share/keyrings/jenkins-keyring.asc > /dev/null
+
+      - name: Import Key
+        shell: echo deb [signed-by=/usr/share/keyrings/jenkins-keyring.asc] https://pkg.jenkins.io/debian-stable binary/ | tee /etc/apt/sources.list.d/jenkins.list > /dev/null
+
+      - name: Update apt
+        apt: update_cache=yes
+
+      - name: Install Java Debian
+        apt: name=openjdk-11-jre-headless
+
+      - name: Install Jenkins Debian
+        apt: name=jenkins state=latest
+
+      - name: Open port 8080 tcp
+        shell: sudo iptables -A INPUT -p tcp --dport 8080 -j ACCEPT
+
+      when: ansible_os_family == "Debian"
+
+    - name: Start Jenkins
+      systemd:
+        name: jenkins
+        enabled: yes
+        state: started
